@@ -12,6 +12,17 @@ pub fn build(builder: *std.build.Builder) void {
     exe.linkLibC();
     exe.linkSystemLibrary("memflow_ffi"); // libmemflow_ffi.so
 
+    const test_dll = builder.addSharedLibrary("test-dll", "src/test_dll.zig", .unversioned);
+    test_dll.setTarget(.{
+        .cpu_arch = .x86_64,
+        .os_tag = .windows,
+    });
+    test_dll.setBuildMode(mode);
+    test_dll.addPackagePath("win32", "./libs/zigwin32/win32.zig");
+    test_dll.linkLibC();
+    test_dll.linkSystemLibraryName("user32");
+    test_dll.install();
+
     const run_cmd = exe.run();
     run_cmd.step.dependOn(builder.getInstallStep());
     if (builder.args) |args| {

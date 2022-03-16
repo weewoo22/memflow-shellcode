@@ -2,3 +2,7 @@
 	path = libs/zig-clap
 	url = https://github.com/Hejsil/zig-clap.git
 	shallow = true
+[submodule "libs/zigwin32"]
+	path = libs/zigwin32
+	url = https://github.com/marlersoft/zigwin32.git
+	shallow = true
