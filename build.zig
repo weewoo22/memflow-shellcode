@@ -6,6 +6,7 @@ pub fn build(builder: *std.build.Builder) void {
 
     const exe = builder.addExecutable("memflow-shell", "src/main.zig");
     exe.setTarget(target);
+    exe.addPackagePath("clap", "./libs/zig-clap/clap.zig");
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
