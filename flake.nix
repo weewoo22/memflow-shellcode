@@ -2,7 +2,7 @@
   description = "Shellcode execution capabilities with memflow";
 
   inputs = {
-    flake.url = github:numtide/flake-utils;
+    flake-utils.url = github:numtide/flake-utils;
     memflow.url = github:memflow/memflow-nixos;
     nixpkgs.url = github:nixos/nixpkgs/nixos-unstable;
     zig-overlay.url = github:arqv/zig-overlay;
