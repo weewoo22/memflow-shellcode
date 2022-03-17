@@ -5,7 +5,7 @@ pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
 
     // %SystemRoot%\System32\win32kbase.sys
     var kernel_module_info: mf.ModuleInfo = undefined;
-    // Search for kernel process
+    // Search for kernel module
     try mf.tryError(
         mf.mf_osinstance_module_by_name(os_instance, mf.slice("win32kbase.sys"), &kernel_module_info),
         error.MemflowOSIntanceModuleByNameError,
