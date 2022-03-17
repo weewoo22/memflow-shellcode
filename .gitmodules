@@ -6,3 +6,6 @@
 	path = libs/zigwin32
 	url = https://github.com/marlersoft/zigwin32.git
 	shallow = true
+[submodule "libs/zig-args"]
+	path = libs/zig-args
+	url = https://github.com/MasterQ32/zig-args.git

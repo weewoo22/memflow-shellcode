@@ -3,82 +3,108 @@ const std = @import("std");
 pub const logger = std.log.scoped(.@"memflow-shell");
 pub const log_level: std.log.Level = .debug;
 
-const clap = @import("clap");
+const @"args-parser" = @import("args");
 
 const mf = @import("./memflow.zig");
 
-pub fn main() !u8 {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // const allocator = gpa.allocator();
-    // defer _ = gpa.deinit();
+const load = @import("./load.zig").load;
+const run = @import("./run.zig").run;
 
-    var inventory: *mf.Inventory = undefined;
+pub fn main() !u8 {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var connector_inventory: *mf.Inventory = undefined;
     var connector_instance: mf.ConnectorInstance = undefined;
     var os_instance: mf.OsInstance = undefined;
-    var process_instance: mf.ProcessInstance = undefined;
 
-    const parameters = comptime [_]clap.Param(clap.Help){
-        clap.parseParam("-h, --help\tDisplay this help and exit") catch unreachable,
-        .{
-            .id = clap.Help{ .desc = "Guest process name", .val = "str" },
-            .names = .{ .short = 'p', .long = "process" },
-            .takes_value = .one,
+    const Subcommand = union(enum) {
+        load: struct {
+            process: ?[]const u8 = null,
+            dll: ?[]const u8 = null,
+
+            pub const shorthands = .{
+                .p = "process",
+                .d = "dll",
+            };
+        },
+        run: struct {
+            exe: ?[]const u8 = null,
+
+            pub const shorthands = .{
+                .e = "exe",
+            };
         },
     };
 
-    var clap_diagnostic = clap.Diagnostic{};
-    var result = clap.parse(clap.Help, &parameters, clap.parsers.default, .{
-        .diagnostic = &clap_diagnostic,
-    }) catch |err| {
-        // Report useful error and exit
-        clap_diagnostic.report(std.io.getStdErr().writer(), err) catch {};
-        return 1;
-    };
-    defer result.deinit();
-
-    if (result.args.help) {
-        _ = try std.io.getStdErr().write("memflow-shell ");
-        try clap.usage(std.io.getStdErr().writer(), clap.Help, &parameters);
-        _ = try std.io.getStdErr().write("\n");
-        try clap.help(std.io.getStdErr().writer(), clap.Help, &parameters);
-        return 1;
-    }
-
-    if (result.args.process == null) {
-        logger.err("Option -p/--process is required", .{});
-        return 1;
-    }
-    const process_name = result.args.process.?;
+    const options = @"args-parser".parseWithVerbForCurrentProcess(
+        struct {},
+        Subcommand,
+        allocator,
+        .print,
+    ) catch return 1;
+    defer options.deinit();
 
     // Initialize memflow logging
     mf.log_init(mf.Level_Info);
 
     // Create a connector inventory by scanning default and compiled-in paths
     // If it returns a null pointer treat this as an error in being unable to scan inventory paths
-    inventory = mf.inventory_scan() orelse return error.MemflowInventoryScanError;
+    connector_inventory = mf.inventory_scan() orelse return error.MemflowInventoryScanError;
 
     // Create a new memflow connector instance from the current inventory of plugins (using KVM)
     try mf.tryError(
-        mf.inventory_create_connector(inventory, "kvm", "", &connector_instance),
+        mf.inventory_create_connector(connector_inventory, "kvm", "", &connector_instance),
         error.MemflowInventoryCreateConnectorError,
     );
     // Now using the KVM connector instance create an OS instance (using win32)
     try mf.tryError(
-        mf.inventory_create_os(inventory, "win32", "", &connector_instance, &os_instance),
+        mf.inventory_create_os(connector_inventory, "win32", "", &connector_instance, &os_instance),
         error.MemflowInventoryCreateOSError,
     );
 
-    // Search for the target process name
-    try mf.tryError(
-        mf.mf_osinstance_process_by_name(&os_instance, mf.slice(process_name), &process_instance),
-        error.MemflowOSIntanceProcessByNameError,
-    );
+    var subcommand: Subcommand = undefined;
 
-    const target_process_info = mf.mf_processinstance_info(&process_instance) orelse {
-        logger.err("Failed to find process. Are you sure it's running?", .{});
-        return error.MemflowProcessInstanceInfoError;
-    };
-    logger.info("Found process as PID {}", .{target_process_info.*.pid});
+    if (options.verb) |verb| {
+        subcommand = verb;
+    } else {
+        logger.err("Subcommand required", .{});
+        return 1;
+    }
+
+    switch (subcommand) {
+        .load => |opts| {
+            var target_process_name: []const u8 = undefined;
+            var injection_dll_path: []const u8 = undefined;
+
+            if (opts.process) |process_name| {
+                target_process_name = process_name;
+            } else {
+                logger.err("-p/--process is required", .{});
+                return 1;
+            }
+            if (opts.dll) |dll_path| {
+                injection_dll_path = dll_path;
+            } else {
+                logger.err("-d/--dll is required", .{});
+                return 1;
+            }
+
+            try load(&os_instance, target_process_name, injection_dll_path);
+        },
+        .run => |opts| {
+            var exe_path: []const u8 = undefined;
+            if (opts.exe) |opt_exe| {
+                exe_path = opt_exe;
+            } else {
+                logger.err("-e/--exe is required", .{});
+                return 1;
+            }
+
+            try run(&os_instance, exe_path);
+        },
+    }
 
     return 0;
 }

@@ -6,7 +6,7 @@ pub fn build(builder: *std.build.Builder) void {
 
     const exe = builder.addExecutable("memflow-shell", "src/main.zig");
     exe.setTarget(target);
-    exe.addPackagePath("clap", "./libs/zig-clap/clap.zig");
+    exe.addPackagePath("args", "./libs/zig-args/args.zig");
     exe.setBuildMode(mode);
     exe.install();
     exe.linkLibC();
@@ -22,6 +22,14 @@ pub fn build(builder: *std.build.Builder) void {
     test_dll.linkLibC();
     test_dll.linkSystemLibraryName("user32");
     test_dll.install();
+
+    const test_exe = builder.addExecutable("test-exe", "src/test_exe.zig");
+    test_exe.setTarget(.{
+        .cpu_arch = .x86_64,
+        .os_tag = .windows,
+    });
+    test_exe.setBuildMode(mode);
+    test_exe.install();
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(builder.getInstallStep());
