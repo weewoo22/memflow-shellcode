@@ -8,6 +8,11 @@
     zig-overlay.url = github:arqv/zig-overlay;
   };
 
+  nixConfig = {
+    extra-substituters = [ https://memflow.cachix.org ];
+    extra-trusted-public-keys = [ memflow.cachix.org-1:t4ufU/+o8xtYpZQc9/AyzII/sohwMKGYNIMgT56CgXA= ];
+  };
+
   outputs = { self, nixpkgs, flake-utils, zig-overlay, ... } @ inputs:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -22,7 +27,6 @@
 
           buildInputs = with pkgs; with inputs.memflow.packages.${system}; [
             memflow
-            memflow-kvm
           ];
         };
       }
