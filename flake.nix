@@ -19,15 +19,29 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        devShell = pkgs.mkShell {
+        defaultPackage = pkgs.stdenv.mkDerivation {
+          name = "memflow-shell";
+
           nativeBuildInputs = with pkgs; [
             pkg-config
             zig-overlay.packages.${system}.master.latest
           ];
-
           buildInputs = with pkgs; with inputs.memflow.packages.${system}; [
             memflow
           ];
+
+          src = ./.;
+
+          buildPhase = ''
+            # Set Zig global cache directory
+            export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
+            zig build
+          '';
+          installPhase = ''
+            zig build install --prefix $out
+          '';
+
+          meta = { };
         };
       }
     );
