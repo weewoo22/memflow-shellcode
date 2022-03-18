@@ -83,6 +83,7 @@ pub fn byteSequence(comptime values: anytype) [@typeInfo(@TypeOf(values)).Struct
     return tokens;
 }
 
+/// Scan kernel module for pattern
 pub fn scanOSModuleForPattern(
     os_instance: *memflow.OsInstance,
     module_info: *memflow.ModuleInfo,
@@ -148,9 +149,9 @@ pub fn scanOSModuleForPattern(
                                 .byte => {
                                     // Get the byte of memory at the current address
                                     var current_memory_byte: u8 = undefined;
-                                    memflow.readRawInto(
+                                    memflow.readOSRawInto(
                                         &current_memory_byte,
-                                        context.process_instance,
+                                        context.os_instance,
                                         current_address + index,
                                     ) catch {
                                         std.debug.print(
@@ -183,6 +184,22 @@ pub fn scanOSModuleForPattern(
     );
 
     return callback_context.match_address;
+}
+
+pub fn readOSRawInto(
+    object: anytype,
+    os_instance: *memflow.OsInstance,
+    virtual_address: usize,
+) !void {
+    _ = object;
+    _ = os_instance;
+    _ = virtual_address;
+}
+
+pub fn writeOSRaw(object: anytype, os_instance: *memflow.OsInstance, virtual_address: usize) !void {
+    _ = object;
+    _ = os_instance;
+    _ = virtual_address;
 }
 
 /// Wrapper for memflow read_raw_into
