@@ -83,8 +83,8 @@ pub fn byteSequence(comptime values: anytype) [@typeInfo(@TypeOf(values)).Struct
     return tokens;
 }
 
-pub fn scanModuleForPattern(
-    process_instance: *memflow.ProcessInstance,
+pub fn scanOSModuleForPattern(
+    os_instance: *memflow.OsInstance,
     module_info: *memflow.ModuleInfo,
     search_sequence: []const ByteToken,
 ) !?usize {
@@ -97,17 +97,17 @@ pub fn scanModuleForPattern(
 
     const RangeCallbackContext = struct {
         search_sequence: []const memflow.ByteToken,
-        process_instance: *memflow.ProcessInstance,
+        os_instance: *memflow.OsInstance,
         match_address: ?usize = null,
     };
 
     var callback_context = RangeCallbackContext{
         .search_sequence = search_sequence,
-        .process_instance = process_instance,
+        .os_instance = os_instance,
     };
 
     memflow.mf_processinstance_virt_page_map_range(
-        process_instance,
+        os_instance,
         // Don't merge any gaps in memory regions, only map contiguous pages inclusive to module
         @as(memflow.imem, 0),
         // Start mapping address ranges from the base address of the module to search within
@@ -183,4 +183,42 @@ pub fn scanModuleForPattern(
     );
 
     return callback_context.match_address;
+}
+
+/// Wrapper for memflow read_raw_into
+pub fn readRawInto(
+    object: anytype,
+    process_instance: *memflow.ProcessInstance,
+    virtual_address: usize,
+) !void {
+    const read_size = @sizeOf(@typeInfo(@TypeOf(object)).Pointer.child);
+
+    try memflow.tryErrorLog(
+        memflow.mf_processinstance_read_raw_into(
+            process_instance,
+            virtual_address,
+            .{ .data = @ptrCast([*c]u8, object), .len = read_size },
+        ),
+        error.MemflowProcessInstanceReadRawIntoError,
+        null,
+    );
+}
+
+/// Wrapper for memflow write_raw
+pub fn writeRaw(
+    object: anytype,
+    process_instance: *memflow.ProcessInstance,
+    virtual_address: usize,
+) !void {
+    const write_size = @sizeOf(@typeInfo(@TypeOf(object)).Pointer.child);
+
+    try memflow.tryErrorLog(
+        memflow.mf_processinstance_write_raw(
+            process_instance,
+            virtual_address,
+            .{ .data = @ptrCast([*c]u8, object), .len = write_size },
+        ),
+        error.MemflowProcessInstanceWriteRawError,
+        true,
+    );
 }

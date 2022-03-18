@@ -1,4 +1,8 @@
+const std = @import("std");
+
 const mf = @import("./memflow.zig");
+
+const logger = @import("./main.zig").logger;
 
 pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
     _ = exe_path;
@@ -11,9 +15,40 @@ pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
         error.MemflowOSIntanceModuleByNameError,
     );
 
-    // try mf.scanModuleForPattern(
+    logger.info("Kernel module starts: 0x{X} & ends: 0x{x}", .{ kernel_module_info.base, kernel_module_info.base + kernel_module_info.size });
+
+    // Windows NT operating system kernel executable
+    // var nt_kernel_image_info: mf.ModuleInfo = undefined;
+    // try mf.tryError(
+    //     mf.mf_osinstance_primary_module(os_instance, &nt_kernel_image_info),
+    //     error.MemflowOSInstancePrimaryModuleError,
+    // );
+
+    logger.debug("Enumerating module \"{s}\" exports:", .{kernel_module_info.name});
+    try mf.tryError(
+        mf.mf_osinstance_module_export_list_callback(
+            os_instance,
+            &kernel_module_info,
+            .{
+                .context = null,
+                .func = struct {
+                    fn _(context: ?*anyopaque, export_info: mf.ExportInfo) callconv(.C) bool {
+                        _ = context;
+
+                        std.debug.print("Export: \"{s}\"\n", .{export_info.name});
+
+                        return true;
+                    }
+                }._,
+            },
+        ),
+        error.ProcessInstanceModuleExportListCallbackError,
+    );
+    logger.debug("Enumeration complete", .{});
+
+    // try mf.scanOSModuleForPattern(
     //     null,
-    //     null,
+    //     &kernel_module_info,
     //     &comptime mf.byteSequence(.{
     //         // 48 8B C4 48 89 58 ?? 48 89 70 ?? 48 89 78 ?? 55 41 56 41 57 48 8D 68 ?? 48 81 EC D0 00 00 00
     //         0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, {},   0x48, 0x89, 0x70, {},   0x48, 0x89, 0x78,
