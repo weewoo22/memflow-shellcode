@@ -1,9 +1,24 @@
+const std = @import("std");
+
 const mf = @import("./memflow.zig");
 
 const logger = @import("./main.zig").logger;
 
-pub fn load(os_instance: *mf.OsInstance, process_name: []const u8, dll_path: []const u8) !void {
-    _ = dll_path;
+pub fn load(
+    allocator: std.mem.Allocator,
+    os_instance: *mf.OsInstance,
+    process_name: []const u8,
+    dll_path: []const u8,
+) !void {
+    logger.info("Using DLL at path \"{s}\"", .{dll_path});
+
+    const dll_file: std.fs.File = try std.fs.cwd().openFile(dll_path, .{});
+    defer dll_file.close();
+
+    const dll_data = try dll_file.readToEndAlloc(allocator, 0x1000000);
+    defer allocator.free(dll_data);
+
+    logger.info("DLL is {} bytes in size", .{dll_data.len});
 
     var target_process_instance: mf.ProcessInstance = undefined;
 

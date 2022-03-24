@@ -91,7 +91,7 @@ pub fn main() !u8 {
                 return 1;
             }
 
-            try load(&os_instance, target_process_name, injection_dll_path);
+            try load(allocator, &os_instance, target_process_name, injection_dll_path);
         },
         .run => |opts| {
             var exe_path: []const u8 = undefined;
