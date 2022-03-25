@@ -17,32 +17,35 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        lib = pkgs.lib;
       in
       {
-        defaultPackage = pkgs.stdenv.mkDerivation {
-          name = "memflow-shell";
+        packages = {
+          memflow-shell = pkgs.stdenv.mkDerivation {
+            name = "memflow-shell";
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            zig-overlay.packages.${system}.master.latest
-          ];
-          buildInputs = with pkgs; with inputs.memflow.packages.${system}; [
-            memflow
-          ];
+            nativeBuildInputs = with pkgs; with inputs.memflow.packages.${system}; [
+              pkg-config
+              zig-overlay.packages.${system}.master.latest
+              memflow
+            ];
 
-          src = ./.;
+            src = ./.;
 
-          buildPhase = ''
-            # Set Zig global cache directory
-            export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
-            zig build
-          '';
-          installPhase = ''
-            zig build install --prefix $out
-          '';
+            buildPhase = ''
+              # Set Zig global cache directory
+              export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
+              zig build
+            '';
+            installPhase = ''
+              zig build install --prefix $out
+            '';
 
-          meta = { };
+            meta = { };
+          };
+          default = self.packages.${system}.memflow-shell;
         };
+        defaultPackage = self.packages.${system}.default;
       }
     );
 }
