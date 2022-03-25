@@ -41,9 +41,13 @@
               pkg-config
               zig-overlay.packages.${system}.master.latest
               memflow
+              # glibc
+              breakpointHook
             ];
 
             src = ./.;
+
+            dontInstall = true;
 
             postUnpack = ''
               rm -rf $sourceRoot/libs/
@@ -54,12 +58,10 @@
               chmod a+r+w $sourceRoot/libs/*
             '';
             buildPhase = ''
+              test
               # Set Zig global cache directory
               export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
-              zig build
-            '';
-            installPhase = ''
-              zig build install --prefix $out
+              zig build install -Dtarget=native-native-musl --prefix $out
             '';
 
             meta = { };

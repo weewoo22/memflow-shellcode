@@ -48,7 +48,7 @@ pub const ByteToken = union(enum) {
         _ = options;
 
         return switch (value.*) {
-            .byte => |token| std.fmt.format(writer, "0x{X:02}", .{token}),
+            .byte => |token| std.fmt.format(writer, "0x{X:0>2}", .{token}),
             .wildcard => std.fmt.format(writer, "??", .{}),
         };
     }
@@ -89,10 +89,11 @@ pub fn scanOSModuleForPattern(
     module_info: *memflow.ModuleInfo,
     search_sequence: []const ByteToken,
 ) !?usize {
+    const module_size = module_info.base + module_info.size;
     logger.debug("Scanning module \"{s}\" (0x{X}-0x{X}) for pattern {any}", .{
         module_info.name,
         module_info.base,
-        module_info.base + module_info.size,
+        module_size,
         search_sequence,
     });
 
@@ -107,21 +108,23 @@ pub fn scanOSModuleForPattern(
         .os_instance = os_instance,
     };
 
-    memflow.mf_processinstance_virt_page_map_range(
+    memflow.mf_osinstance_virt_page_map_range(
         os_instance,
         // Don't merge any gaps in memory regions, only map contiguous pages inclusive to module
         @as(memflow.imem, 0),
         // Start mapping address ranges from the base address of the module to search within
         module_info.base,
         // Map until the end of the module (base address + module size)
-        module_info.base + module_info.size,
+        module_size,
         .{
             .context = &callback_context,
             .func = struct {
-                pub fn callback(
+                pub fn memoryRangeCallback(
                     range_context: ?*anyopaque,
                     memory_range: memflow.MemoryRange,
                 ) callconv(.C) bool {
+                    logger.debug("Next range", .{});
+
                     var context: *RangeCallbackContext = @ptrCast(
                         *RangeCallbackContext,
                         @alignCast(
@@ -179,7 +182,7 @@ pub fn scanOSModuleForPattern(
 
                     return true;
                 }
-            }.callback,
+            }.memoryRangeCallback,
         },
     );
 
