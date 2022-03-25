@@ -360,7 +360,10 @@
         "flake-utils": "flake-utils",
         "memflow": "memflow",
         "nixpkgs": "nixpkgs_3",
-        "zig-overlay": "zig-overlay"
+        "zig-args": "zig-args",
+        "zig-clap": "zig-clap",
+        "zig-overlay": "zig-overlay",
+        "zig-win32": "zig-win32"
       }
     },
     "rust-overlay": {
@@ -398,6 +401,40 @@
         "type": "github"
       }
     },
+    "zig-args": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1647017273,
+        "narHash": "sha256-nxEF5DvXfa9RB9s0euPam7YIyAJy+Jkkrfz897Pl59s=",
+        "owner": "MasterQ32",
+        "repo": "zig-args",
+        "rev": "1ff417ac1f31f8dbee3a31e5973b46286d42e71d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MasterQ32",
+        "repo": "zig-args",
+        "rev": "1ff417ac1f31f8dbee3a31e5973b46286d42e71d",
+        "type": "github"
+      }
+    },
+    "zig-clap": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1648116501,
+        "narHash": "sha256-KyRBsE9F2QB1ZmenHOpgro1a+B9m6Rtzmj0Q5z+niW0=",
+        "owner": "Hejsil",
+        "repo": "zig-clap",
+        "rev": "0970eb827fe53ad7a6c6744019707190d7b9bb32",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Hejsil",
+        "repo": "zig-clap",
+        "rev": "0970eb827fe53ad7a6c6744019707190d7b9bb32",
+        "type": "github"
+      }
+    },
     "zig-overlay": {
       "inputs": {
         "flake-utils": "flake-utils_4",
@@ -414,6 +451,23 @@
       "original": {
         "owner": "arqv",
         "repo": "zig-overlay",
+        "type": "github"
+      }
+    },
+    "zig-win32": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1643012832,
+        "narHash": "sha256-KSNpWOwCC1j4wOnvf0vyDsvbNStDtJLSSRr5SCxg0A0=",
+        "owner": "marlersoft",
+        "repo": "zigwin32",
+        "rev": "032a1b51b83b8fe64e0a97d7fe5da802065244c6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "marlersoft",
+        "repo": "zigwin32",
+        "rev": "032a1b51b83b8fe64e0a97d7fe5da802065244c6",
         "type": "github"
       }
     }
