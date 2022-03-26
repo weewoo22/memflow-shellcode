@@ -7,60 +7,85 @@ const logger = @import("./main.zig").logger;
 pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
     _ = exe_path;
 
-    // %SystemRoot%\System32\win32kbase.sys
-    var kernel_module_info: mf.ModuleInfo = undefined;
+    var nt_kernel_image_info: mf.ModuleInfo = undefined;
     // Search for kernel module
     try mf.tryError(
-        mf.mf_osinstance_module_by_name(
+        mf.mf_osinstance_primary_module(
             os_instance,
-            mf.slice("win32kbase.sys"),
-            &kernel_module_info,
+            &nt_kernel_image_info,
         ),
         error.MemflowOSIntanceModuleByNameError,
     );
 
     logger.info(
-        "Kernel module starts: 0x{X} & ends: 0x{X}",
+        "Kernel image starts: 0x{X} & ends: 0x{X}",
         .{
-            kernel_module_info.base,
-            kernel_module_info.base + kernel_module_info.size,
+            nt_kernel_image_info.base,
+            nt_kernel_image_info.base + nt_kernel_image_info.size,
         },
     );
 
-    logger.debug("Enumerating module \"{s}\" exports:", .{kernel_module_info.name});
+    const ExportCallbackContext = struct {
+        symbol_offset: ?usize = null,
+    };
+    var export_list_context = ExportCallbackContext{};
+
+    logger.debug("Enumerating NT kernel image (\"{s}\") exports:", .{nt_kernel_image_info.name});
     try mf.tryError(
         mf.mf_osinstance_module_export_list_callback(
             os_instance,
-            &kernel_module_info,
+            &nt_kernel_image_info,
             .{
-                .context = null,
+                .context = &export_list_context,
                 .func = struct {
                     fn _(context: ?*anyopaque, export_info: mf.ExportInfo) callconv(.C) bool {
-                        _ = context;
+                        logger.debug("Export: \"{s}\"", .{export_info.name});
 
-                        std.debug.print("Export: \"{s}\"\n", .{export_info.name});
+                        var callback_context = @ptrCast(*ExportCallbackContext, @alignCast(
+                            @alignOf(*ExportCallbackContext),
+                            context,
+                        ));
+
+                        if (std.mem.eql(u8, std.mem.span(export_info.name), "memset")) {
+                            logger.info(
+                                "Found nt!memset offset for stage 1 hook placement as 0x{X}",
+                                .{export_info.offset},
+                            );
+                            callback_context.symbol_offset = export_info.offset;
+                            return false;
+                        }
 
                         return true;
                     }
                 }._,
             },
         ),
-        error.ProcessInstanceModuleExportListCallbackError,
+        error.MemflowOSInstanceModuleExportListCallbackError,
     );
-    logger.debug("Enumeration complete", .{});
+    logger.debug("Export enumeration complete", .{});
 
-    if (try mf.scanOSModuleForPattern(
-        os_instance,
-        &kernel_module_info,
-        &comptime mf.byteSequence(.{
-            // 48 8B C4 48 89 58 ?? 48 89 70 ?? 48 89 78 ?? 55 41 56 41 57 48 8D 68 ?? 48 81 EC D0
-            // 00 00 00
-            0x48, 0x8B, 0xC4, 0x48, 0x89, 0x58, {},   0x48, 0x89, 0x70, {},   0x48, 0x89, 0x78,
-            {},   0x55, 0x41, 0x56, 0x41, 0x57, 0x48, 0x8D, 0x68, {},   0x48, 0x81, 0xEC, 0xD0,
-            0x00, 0x00, 0x00,
-        }),
-    )) |trampoline_address| {
-        _ = trampoline_address;
-        // TODO: place stage 1 hook
+    var stage_1_addr: usize = undefined;
+
+    if (export_list_context.symbol_offset) |export_addr| {
+        stage_1_addr = nt_kernel_image_info.base + export_addr;
+    } else {
+        logger.warn("Unable to find stage 1 hook location through symbol export enumeration, " ++
+            "resorting to pattern scanning...", .{});
+
+        if (try mf.scanOSModuleForPattern(
+            os_instance,
+            &nt_kernel_image_info,
+            &comptime mf.byteSequence(.{
+                // x /0 nt!memset: 48 8B C1 0F B6 D2 49 B9 01 01 01 01 01 01 01 01
+                0x48, 0x8B, 0xC1, 0x0F, 0xB6, 0xD2, 0x49, 0xB9, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                0x01, 0x01,
+            }),
+        )) |pattern_addr| {
+            stage_1_addr = pattern_addr;
+        } else {
+            return error.Stage1LocationError;
+        }
     }
+
+    logger.info("Stage 1 placement address is 0x{X}", .{stage_1_addr});
 }

@@ -90,117 +90,73 @@ pub fn scanOSModuleForPattern(
     search_sequence: []const ByteToken,
 ) !?usize {
     const module_end = module_info.base + module_info.size;
-    logger.debug("Scanning module \"{s}\" (0x{X}-0x{X}) for pattern {any}", .{
+    logger.debug("Scanning module \"{s}\" with size of {} bytes (0x{X}-0x{X}) for pattern {any}", .{
         module_info.name,
+        module_info.size,
         module_info.base,
         module_end,
         search_sequence,
     });
-    logger.info("Module is {} bytes in size", .{module_info.size});
 
-    const RangeCallbackContext = struct {
-        search_sequence: []const memflow.ByteToken,
-        os_instance: *memflow.OsInstance,
-        match_address: ?usize = null,
-    };
+    const allocator: std.mem.Allocator = std.heap.page_allocator;
 
-    var callback_context = RangeCallbackContext{
-        .search_sequence = search_sequence,
-        .os_instance = os_instance,
-    };
+    // Allocate a byte array that's the size of the module being scanned
+    var module_memory: []u8 = try allocator.alloc(u8, module_info.size);
+    defer allocator.free(module_memory);
 
-    memflow.mf_osinstance_virt_page_map_range(
-        os_instance,
-        // Only map contiguous pages inclusive to module; don't merge any gaps in memory regions
-        @as(memflow.imem, -1),
-        // Start mapping address ranges from the base address of the module to search within
-        module_info.base,
-        // Map until the end of the module (base address + module size)
-        module_end,
-        .{
-            .context = &callback_context,
-            .func = struct {
-                pub fn memoryRangeCallback(
-                    range_context: ?*anyopaque,
-                    memory_range: memflow.MemoryRange,
-                ) callconv(.C) bool {
-                    std.debug.print("Wtf going on here\n", .{});
+    // Read as much of the module's memory as possible (ignoring errors) into the allocated buffer
+    try readOSRawInto(module_memory.ptr, module_memory.len, os_instance, module_info.base);
 
-                    var context: *RangeCallbackContext = @ptrCast(
-                        *RangeCallbackContext,
-                        @alignCast(
-                            @alignOf(*RangeCallbackContext),
-                            range_context,
-                        ),
-                    );
+    var current_index: usize = 0;
+    const address_alignment = 1; // TODO: make this a function parameter
+    var match_offset: ?usize = null;
 
-                    // Address to start at when searching within target module
-                    var current_address = memory_range._0;
-                    // Address of end of current module memory range
-                    const range_end_address = memory_range._0 + memory_range._1 - context.search_sequence.len;
-                    logger.debug("Scanning memory segment 0x{X}-0x{X} (0x{X})", .{
-                        current_address,
-                        range_end_address,
-                        range_end_address - memory_range._0,
-                    });
+    // Search between the start and end of the copy of the module's memory
+    outter: while (current_index < module_info.size - search_sequence.len) : (current_index += address_alignment) {
+        for (search_sequence) |expected_byte, seq_index| {
+            const current_byte = module_memory[current_index + seq_index];
 
-                    const address_alignment = 1;
-
-                    // Search between start and end of current module address range
-                    while (current_address < range_end_address) : (current_address += address_alignment) {
-                        for (context.search_sequence) |expected_byte, index| {
-                            switch (expected_byte) {
-                                .byte => {
-                                    // Get the byte of memory at the current address
-                                    var current_memory_byte: u8 = undefined;
-                                    memflow.readOSRawInto(
-                                        &current_memory_byte,
-                                        context.os_instance,
-                                        current_address + index,
-                                    ) catch {
-                                        std.debug.print(
-                                            "Failed to read address 0x{X}\n",
-                                            .{current_address},
-                                        );
-                                    };
-
-                                    if ((ByteToken{ .byte = current_memory_byte }).byte != expected_byte.byte) {
-                                        // All is good, break out of the current for loop
-                                        break;
-                                    }
-                                },
-                                .wildcard => {},
-                            }
-
-                            // If we've looped through and all tokens matched
-                            if (index == context.search_sequence.len - 1) {
-                                context.match_address = current_address;
-                                logger.debug(
-                                    "Found pattern match at address 0x{X}",
-                                    .{context.match_address},
-                                );
-                                return false;
-                            }
-                        }
+            switch (expected_byte) {
+                .byte => {
+                    if ((ByteToken{ .byte = current_byte }).byte != expected_byte.byte) {
+                        // Doesn't match, advance outter index by address_alignment and try again
+                        break;
                     }
+                },
+                .wildcard => {},
+            }
 
-                    return true;
-                }
-            }.memoryRangeCallback,
-        },
-    );
+            // If all bytes matched all tokens at the end of looping
+            if (seq_index == search_sequence.len - 1) {
+                match_offset = current_index;
+                logger.debug("Found a match", .{});
+                break :outter;
+            }
+        }
+    }
 
-    return callback_context.match_address;
+    return if (match_offset) |offset| module_info.base + offset else match_offset;
 }
 
 pub fn readOSRawInto(
     object: anytype,
+    size: ?usize,
     os_instance: *memflow.OsInstance,
     virtual_address: usize,
 ) !void {
-    _ = object;
-    _ = os_instance;
-    _ = virtual_address;
+    const read_size = if (size) |s| s else @sizeOf(@typeInfo(@TypeOf(object)).Pointer.child);
+
+    const read_status = memflow.mf_osinstance_read_raw_into(
+        os_instance,
+        virtual_address,
+        .{ .data = @ptrCast([*c]u8, object), .len = read_size },
+    );
+
+    return switch (read_status) {
+        0 => {},
+        // TODO: add different read failures
+        else => error.MemflowOSInstanceReadRawIntoUnknownError,
+    };
 }
 
 pub fn writeOSRaw(object: anytype, os_instance: *memflow.OsInstance, virtual_address: usize) !void {
