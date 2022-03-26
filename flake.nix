@@ -31,13 +31,23 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
+        memflowPkgs = builtins.mapAttrs
+          (name: package:
+            (package.overrideAttrs
+              (super: {
+                dontStrip = true;
+                buildType = "debug";
+              })
+            )
+          )
+          inputs.memflow.packages.${system};
       in
       {
         packages = {
           memflow-shell = pkgs.stdenv.mkDerivation {
             name = "memflow-shell";
 
-            nativeBuildInputs = with pkgs; with inputs.memflow.packages.${system}; [
+            nativeBuildInputs = with pkgs; with memflowPkgs; [
               pkg-config
               zig-overlay.packages.${system}.master.latest
               memflow
@@ -72,4 +82,3 @@
       }
     );
 }
-

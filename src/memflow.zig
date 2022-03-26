@@ -89,13 +89,14 @@ pub fn scanOSModuleForPattern(
     module_info: *memflow.ModuleInfo,
     search_sequence: []const ByteToken,
 ) !?usize {
-    const module_size = module_info.base + module_info.size;
+    const module_end = module_info.base + module_info.size;
     logger.debug("Scanning module \"{s}\" (0x{X}-0x{X}) for pattern {any}", .{
         module_info.name,
         module_info.base,
-        module_size,
+        module_end,
         search_sequence,
     });
+    logger.info("Module is {} bytes in size", .{module_info.size});
 
     const RangeCallbackContext = struct {
         search_sequence: []const memflow.ByteToken,
@@ -110,12 +111,12 @@ pub fn scanOSModuleForPattern(
 
     memflow.mf_osinstance_virt_page_map_range(
         os_instance,
-        // Don't merge any gaps in memory regions, only map contiguous pages inclusive to module
-        @as(memflow.imem, 0),
+        // Only map contiguous pages inclusive to module; don't merge any gaps in memory regions
+        @as(memflow.imem, -1),
         // Start mapping address ranges from the base address of the module to search within
         module_info.base,
         // Map until the end of the module (base address + module size)
-        module_size,
+        module_end,
         .{
             .context = &callback_context,
             .func = struct {
@@ -123,7 +124,7 @@ pub fn scanOSModuleForPattern(
                     range_context: ?*anyopaque,
                     memory_range: memflow.MemoryRange,
                 ) callconv(.C) bool {
-                    logger.debug("Next range", .{});
+                    std.debug.print("Wtf going on here\n", .{});
 
                     var context: *RangeCallbackContext = @ptrCast(
                         *RangeCallbackContext,
@@ -174,7 +175,10 @@ pub fn scanOSModuleForPattern(
                             // If we've looped through and all tokens matched
                             if (index == context.search_sequence.len - 1) {
                                 context.match_address = current_address;
-                                logger.debug("Found pattern match at address 0x{X}", .{context.match_address});
+                                logger.debug(
+                                    "Found pattern match at address 0x{X}",
+                                    .{context.match_address},
+                                );
                                 return false;
                             }
                         }
