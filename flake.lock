@@ -19,11 +19,11 @@
     "cloudflow": {
       "flake": false,
       "locked": {
-        "lastModified": 1646737228,
-        "narHash": "sha256-A6cWDX91uD9LT6LCadE3JXv2CL0fHCNqqdSCGsqu3FQ=",
+        "lastModified": 1648326990,
+        "narHash": "sha256-rA49kK4fr4rnlmWpY144Nq7V+lBfrHLQdjAS6kJ9ReA=",
         "owner": "memflow",
         "repo": "cloudflow",
-        "rev": "1562eca1c19ffcdf229f691868c8cd72ffa7b70b",
+        "rev": "7f32b7ae4eecef83d5d967f589b507e5b3db79ba",
         "type": "github"
       },
       "original": {
@@ -112,11 +112,11 @@
         "scanflow": "scanflow"
       },
       "locked": {
-        "lastModified": 1648324260,
-        "narHash": "sha256-5E8x6iKb2ngeJLN4iSnmfZz1Te86H0irEVy4C4I9r84=",
+        "lastModified": 1648332559,
+        "narHash": "sha256-RbAfZesQZ/lflrkg+nzUbgH60Y8j5O9fhqUrdfb2cQY=",
         "owner": "memflow",
         "repo": "memflow-nixos",
-        "rev": "f5e5147f6164159e27e3a0a16dbdcd83d5402e13",
+        "rev": "389670b33118708fc6fb082778351b3e98385414",
         "type": "github"
       },
       "original": {
@@ -441,11 +441,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1648254963,
-        "narHash": "sha256-kmAh5FHPXuUEWQBruf1KgIoiRhZbkSBVDGPfQFD6HnM=",
+        "lastModified": 1648341617,
+        "narHash": "sha256-j4HXFD1eKxCFfMbBYhNnLmXZ7q6cahVqH/Hlq43v8RM=",
         "owner": "arqv",
         "repo": "zig-overlay",
-        "rev": "98a03c3924532d30abc05f5772a8e6ca6c2a302d",
+        "rev": "8d79efd701963ac3c9a55755de44e6fd4a6c8d76",
         "type": "github"
       },
       "original": {

@@ -35,8 +35,8 @@
           (name: package:
             (package.overrideAttrs
               (super: {
-                dontStrip = true;
-                buildType = "debug";
+                # dontStrip = true;
+                # buildType = "debug";
               })
             )
           )
