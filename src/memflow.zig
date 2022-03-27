@@ -159,10 +159,25 @@ pub fn readOSRawInto(
     };
 }
 
+/// Wrapper around mf_osinstance_write_raw
 pub fn writeOSRaw(object: anytype, os_instance: *memflow.OsInstance, virtual_address: usize) !void {
-    _ = object;
-    _ = os_instance;
-    _ = virtual_address;
+    const pointer_type = @typeInfo(@TypeOf(object)).Pointer;
+
+    const read_size = switch (pointer_type.size) {
+        .One => @sizeOf(pointer_type.child),
+        .Slice => @sizeOf(pointer_type.child) * object.len,
+        else => unreachable,
+    };
+
+    try memflow.tryErrorLog(
+        memflow.mf_osinstance_write_raw(
+            os_instance,
+            virtual_address,
+            .{ .data = @ptrCast([*c]u8, object), .len = read_size },
+        ),
+        error.MemflowOSInstanceWriteRawError,
+        null,
+    );
 }
 
 /// Wrapper for memflow read_raw_into
@@ -201,4 +216,21 @@ pub fn writeRaw(
         error.MemflowProcessInstanceWriteRawError,
         true,
     );
+}
+
+pub fn writeShellcode(
+    os_instance: *memflow.OsInstance,
+    virtual_addr: usize,
+    label_start: fn () callconv(.Naked) noreturn,
+    label_end: fn () callconv(.Naked) noreturn,
+) !void {
+    _ = virtual_addr;
+    // TODO: assert label end is greater than label start
+
+    const start_copy_addr = @ptrToInt(label_start);
+    const shellcode_len = @ptrToInt(label_end) - start_copy_addr;
+
+    var shellcode = @intToPtr([*]u8, start_copy_addr)[0..shellcode_len];
+
+    try writeOSRaw(shellcode, os_instance, virtual_addr);
 }

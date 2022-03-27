@@ -3,6 +3,7 @@ const std = @import("std");
 const mf = @import("./memflow.zig");
 
 const logger = @import("./main.zig").logger;
+const shellcode = @import("./shellcode.zig");
 
 pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
     _ = exe_path;
@@ -88,4 +89,11 @@ pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
     }
 
     logger.info("Stage 1 placement address is 0x{X}", .{stage_1_addr});
+
+    // try mf.writeShellcode(
+    //     os_instance,
+    //     stage_1_addr,
+    //     shellcode.blue_screen,
+    //     shellcode._blue_screen,
+    // );
 }
