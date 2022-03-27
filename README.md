@@ -6,6 +6,7 @@
 - [ ] Spawn usermode process
 - [ ] Dump disk encryption private key (LUKS & BitLocker)
 - [ ] Bypass windows login screen
+- [ ] Fault trigger (command to raise a page fault for the bounds of any usermode process)
 
 ### Credits
 
