@@ -7,6 +7,11 @@
     nixpkgs.url = github:nixos/nixpkgs/nixos-unstable;
     zig-overlay.url = github:arqv/zig-overlay;
 
+    flake-compat = {
+      url = github:edolstra/flake-compat;
+      flake = false;
+    };
+
     zig-win32 = {
       url = github:marlersoft/zigwin32/032a1b51b83b8fe64e0a97d7fe5da802065244c6;
       flake = false;
@@ -27,7 +32,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, zig-overlay, ... } @ inputs:
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
@@ -51,8 +56,6 @@
               pkg-config
               zig-overlay.packages.${system}.master.latest
               memflow
-              # glibc
-              breakpointHook
             ];
 
             src = ./.;
@@ -68,7 +71,6 @@
               chmod a+r+w $sourceRoot/libs/*
             '';
             buildPhase = ''
-              test
               # Set Zig global cache directory
               export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
               zig build install -Dtarget=native-native-musl --prefix $out
