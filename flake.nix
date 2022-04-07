@@ -2,16 +2,26 @@
   description = "Shellcode execution capabilities with memflow";
 
   inputs = {
-    flake-utils.url = github:numtide/flake-utils;
-    memflow.url = github:memflow/memflow-nixos;
     nixpkgs.url = github:nixos/nixpkgs/nixos-unstable;
-    zig-overlay.url = github:arqv/zig-overlay;
-
+    memflow = {
+      url = github:memflow/memflow-nixos;
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        rust-overlay = {
+          url = github:oxalica/rust-overlay;
+          inputs.nixpkgs.follows = "nixpkgs";
+        };
+      };
+    };
+    zig-overlay = {
+      url = github:arqv/zig-overlay;
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    flake-utils.url = github:numtide/flake-utils;
     flake-compat = {
       url = github:edolstra/flake-compat;
       flake = false;
     };
-
     zig-win32 = {
       url = github:marlersoft/zigwin32/032a1b51b83b8fe64e0a97d7fe5da802065244c6;
       flake = false;
@@ -56,6 +66,7 @@
               pkg-config
               zig-overlay.packages.${system}.master.latest
               memflow
+              # glibc
             ];
 
             src = ./.;
