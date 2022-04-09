@@ -84,7 +84,7 @@
             buildPhase = ''
               # Set Zig global cache directory
               export XDG_CACHE_HOME="$TMPDIR/zig-cache/"
-              zig build install -Dtarget=native-native-musl --prefix $out
+              zig build install --prefix $out
             '';
 
             meta = { };
