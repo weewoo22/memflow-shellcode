@@ -63,8 +63,8 @@
             name = "memflow-shell";
 
             nativeBuildInputs = with pkgs; with memflowPkgs; [
-              pkg-config
               zig-overlay.packages.${system}.master.latest
+              pkg-config
               memflow
               # glibc
             ];
