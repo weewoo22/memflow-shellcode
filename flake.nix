@@ -2,7 +2,7 @@
   description = "Shellcode execution capabilities with memflow";
 
   inputs = {
-    nixpkgs.url = github:nixos/nixpkgs/nixos-unstable;
+    nixpkgs.url = github:nixos/nixpkgs/nixpkgs-unstable;
     memflow = {
       url = github:memflow/memflow-nixos;
       inputs = {
