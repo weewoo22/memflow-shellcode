@@ -5,8 +5,16 @@ const mf = @import("./memflow.zig");
 const logger = @import("./main.zig").logger;
 const shellcode = @import("./shellcode.zig");
 
-pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
-    _ = exe_path;
+pub fn run(allocator: std.mem.Allocator, os_instance: *mf.OsInstance, exe_path: []const u8) !void {
+    logger.info("Using executable at path \"{s}\"", .{exe_path});
+
+    const exe_file: std.fs.File = try std.fs.cwd().openFile(exe_path, .{});
+    defer exe_file.close();
+
+    const exe_data = try exe_file.readToEndAlloc(allocator, 0x1000000);
+    defer allocator.free(exe_data);
+
+    logger.info("Executable is {} bytes in size", .{exe_data.len});
 
     var nt_kernel_image_info: mf.ModuleInfo = undefined;
     // Search for kernel module
@@ -89,11 +97,15 @@ pub fn run(os_instance: *mf.OsInstance, exe_path: []const u8) !void {
     }
 
     logger.info("Stage 1 placement address is 0x{X}", .{stage_1_addr});
+    // TODO: Programmatically determine unused .text page area
+    const stage_2_addr: usize = nt_kernel_image_info.base + 0x652BED;
+    logger.info("Stage 2 placement address is 0x{X}", .{stage_2_addr});
 
-    // try mf.writeShellcode(
-    //     os_instance,
-    //     stage_1_addr,
-    //     shellcode.blue_screen,
-    //     shellcode._blue_screen,
-    // );
+    try mf.writeShellcode(os_instance, stage_2_addr, shellcode.stage_2, shellcode._stage_2);
+    try mf.writeShellcode(
+        os_instance,
+        stage_1_addr,
+        shellcode.kernel_trampoline,
+        shellcode._kernel_trampoline,
+    );
 }

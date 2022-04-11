@@ -8,6 +8,19 @@ const logger = std.log.scoped(.memflow);
 
 const memflow = @This();
 
+pub const MemflowError = error{
+    InventoryCreateConnectorError,
+    InventoryCreateOSFailed,
+    InventoryScanFailed,
+    /// "mf_osinstance_process_by_name" function failure
+    ProcessNameLookupFailed,
+    /// "mf_processinstance_info" function failure
+    ProcessInfoLookupFailed,
+    /// "mf_osinstance_read_raw_into" function failure
+    UnknownReadError,
+    WriteRawError,
+};
+
 /// Convert Zig character slice to a memflow FFI character slice
 pub fn slice(s: []const u8) memflow.CSliceRef_u8 {
     return .{ .data = s.ptr, .len = s.len };
@@ -155,7 +168,7 @@ pub fn readOSRawInto(
     return switch (read_status) {
         0 => {},
         // TODO: add different read failures
-        else => error.MemflowOSInstanceReadRawIntoUnknownError,
+        else => memflow.MemflowError.UnknownReadError,
     };
 }
 
@@ -175,7 +188,7 @@ pub fn writeOSRaw(object: anytype, os_instance: *memflow.OsInstance, virtual_add
             virtual_address,
             .{ .data = @ptrCast([*c]u8, object), .len = read_size },
         ),
-        error.MemflowOSInstanceWriteRawError,
+        memflow.MemflowError.WriteRawError,
         null,
     );
 }
@@ -213,7 +226,7 @@ pub fn writeRaw(
             virtual_address,
             .{ .data = @ptrCast([*c]u8, object), .len = write_size },
         ),
-        error.MemflowProcessInstanceWriteRawError,
+        memflow.MemflowError.WriteRawError,
         true,
     );
 }
@@ -227,10 +240,10 @@ pub fn writeShellcode(
     _ = virtual_addr;
     // TODO: assert label end is greater than label start
 
-    const start_copy_addr = @ptrToInt(label_start);
-    const shellcode_len = @ptrToInt(label_end) - start_copy_addr;
+    const shellcode_start_addr = @ptrToInt(label_start);
+    const shellcode_len = @ptrToInt(label_end) - shellcode_start_addr;
 
-    var shellcode = @intToPtr([*]u8, start_copy_addr)[0..shellcode_len];
+    var shellcode = @intToPtr([*]u8, shellcode_start_addr)[0..shellcode_len];
 
     try writeOSRaw(shellcode, os_instance, virtual_addr);
 }

@@ -15,6 +15,7 @@ pub fn main() !u8 {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
+    // Memflow singletons
     var connector_inventory: *mf.Inventory = undefined;
     var connector_instance: mf.ConnectorInstance = undefined;
     var os_instance: mf.OsInstance = undefined;
@@ -51,17 +52,17 @@ pub fn main() !u8 {
 
     // Create a connector inventory by scanning default and compiled-in paths
     // If it returns a null pointer treat this as an error in being unable to scan inventory paths
-    connector_inventory = mf.inventory_scan() orelse return error.MemflowInventoryScanError;
+    connector_inventory = mf.inventory_scan() orelse return mf.MemflowError.InventoryScanFailed;
 
     // Create a new memflow connector instance from the current inventory of plugins (using KVM)
     try mf.tryError(
         mf.inventory_create_connector(connector_inventory, "kvm", "", &connector_instance),
-        error.MemflowInventoryCreateConnectorError,
+        mf.MemflowError.InventoryCreateConnectorError,
     );
     // Now using the KVM connector instance create an OS instance (using win32)
     try mf.tryError(
         mf.inventory_create_os(connector_inventory, "win32", "", &connector_instance, &os_instance),
-        error.MemflowInventoryCreateOSError,
+        mf.MemflowError.InventoryCreateOSFailed,
     );
 
     var subcommand: Subcommand = undefined;
@@ -74,6 +75,7 @@ pub fn main() !u8 {
     }
 
     switch (subcommand) {
+        // Forcefully load kernel driver or DLL
         .load => |opts| {
             var target_process_name: []const u8 = undefined;
             var injection_dll_path: []const u8 = undefined;
@@ -91,8 +93,17 @@ pub fn main() !u8 {
                 return 1;
             }
 
-            try load(allocator, &os_instance, target_process_name, injection_dll_path);
+            load(allocator, &os_instance, target_process_name, injection_dll_path) catch |err| {
+                if (err == mf.MemflowError.ProcessNameLookupFailed) {
+                    logger.err("Unable to find target injection process with name \"{s}\". " ++
+                        "Are you sure it's running?", .{target_process_name});
+                    return 1;
+                }
+
+                return err;
+            };
         },
+        // Run usermode executable process
         .run => |opts| {
             var exe_path: []const u8 = undefined;
             if (opts.exe) |opt_exe| {
@@ -102,7 +113,7 @@ pub fn main() !u8 {
                 return 1;
             }
 
-            try run(&os_instance, exe_path);
+            try run(allocator, &os_instance, exe_path);
         },
     }
 
